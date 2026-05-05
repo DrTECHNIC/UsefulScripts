@@ -1,0 +1,6 @@
+СОРЕВНОВАТЕЛЬНЫЙ: Anubis, Overpass, Inferno, Mirage, Dust II, Nuke, Ancient, Train, Vertigo, Cache, Office, Italy,
+НАПАРНИКИ: Overpass, Vertigo, Nuke, Inferno,
+ОБЫЧНЫЙ: Anubis, Overpass, Inferno, Mirage, Dust II, Nuke, Ancient, Train, Vertigo, Cache, Office, Italy,
+БОЙ НАСМЕРТЬ: Anubis, Overpass, Inferno, Mirage, Dust II, Nuke, Ancient, Train, Vertigo, Cache, Office, Italy,
+ГОНКА ВООРУЖЕНИЙ: Baggage, Shoots (день), Shoots (ночь), Pool Day,
+ЗАЧИСТКА: Anubis, Overpass, Inferno, Mirage, Dust II, Nuke, Ancient, Train, Vertigo, Cache,
