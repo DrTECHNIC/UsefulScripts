@@ -1,0 +1,8 @@
+Снаряжение: Zeus x27,
+Нож: Нож,
+Пистолет: USP-S, P2000, Glock-18, Револьвер R8, CZ75-Auto, Dual Berettas, P250, Tec-9, Five-SeveN, Desert Eagle,
+Дробовик: Nova, Обрез, MAG-7, XM1014,
+Пистолет-пулемёт: MP7, ПП-19 Бизон, UMP-45, MP5-SD, P90, MP9, MAC-10,
+Пулемёт: Негев, M249,
+Снайперская винтовка: SCAR-20, G3SG1, SSG 08, AWP,
+Винтовка: M4A4, Автомат "Галиль", FAMAS, M4A1-S, AK-47, SG 553, AUG,
