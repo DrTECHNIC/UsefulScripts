@@ -107,6 +107,25 @@ class UnitOfInformation:
             return UnitOfInformation._from_bits(self._total_bits % int(other))
         return NotImplemented
 
+    # ---------- сокращённые операторы присваивания ----------
+    def __iadd__(self, other):
+        return self.__sub__(other)
+
+    def __isub__(self, other):
+        return self.__sub__(other)
+
+    def __imul__(self, other):
+        return self.__mul__(other)
+
+    def __itruediv__(self, other):
+        return self.__truediv__(other)
+
+    def __ifloordiv__(self, other):
+        return self.__floordiv__(other)
+
+    def __imod__(self, other):
+        return self.__mod__(other)
+
     # ---------- сравнение ----------
     def __eq__(self, other):
         if not isinstance(other, UnitOfInformation):
