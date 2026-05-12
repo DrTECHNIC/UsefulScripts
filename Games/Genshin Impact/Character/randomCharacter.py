@@ -1,11 +1,13 @@
 import re, random
 
+
 def colored(text: str, r: int, g: int, b: int) -> str:
     return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
 
-def load_characters(filename: str = ".\\_characters.txt") -> list[tuple[str, str, tuple[int,int,int]]]:
+
+def load_characters(filename: str = ".\\_characters.txt") -> list[tuple[str, str, tuple[int, int, int]]]:
     pairs = list()
-    known_elements: list[tuple[str, tuple[int,int,int]]] = []
+    known_elements: list[tuple[str, tuple[int, int, int]]] = []
     with open(filename, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -35,11 +37,13 @@ def load_characters(filename: str = ".\\_characters.txt") -> list[tuple[str, str
                     pairs.append((element_name, character, color))
     return pairs
 
+
 def random_character(filename: str = ".\\_characters.txt") -> str:
     pairs = load_characters(filename)
     if not pairs:
         raise Exception("Список персонажей пуст. Проверьте файл.")
     return random.choice(pairs)
+
 
 if __name__ == "__main__":
     try:
