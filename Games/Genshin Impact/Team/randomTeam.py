@@ -1,11 +1,13 @@
 import re, random
 
+
 def colored(text: str, r: int, g: int, b: int) -> str:
     return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
 
-def load_characters(filename: str = "..\\Character\\_characters.txt") -> list[tuple[str, str, tuple[int,int,int]]]:
+
+def load_characters(filename: str = "..\\Character\\_characters.txt") -> list[tuple[str, str, tuple[int, int, int]]]:
     characters = list()
-    known_elements: list[tuple[str, tuple[int,int,int]]] = []
+    known_elements: list[tuple[str, tuple[int, int, int]]] = []
     with open(filename, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -34,7 +36,8 @@ def load_characters(filename: str = "..\\Character\\_characters.txt") -> list[tu
                     characters.append((element, name, color))
         return characters
 
-def generate_teams(characters: list[tuple[str, str, tuple[int,int,int]]], num_teams: int = 1, team_size: int = 4) -> list[list[tuple[str, str, tuple[int,int,int]]]]:
+
+def generate_teams(characters: list[tuple[str, str, tuple[int, int, int]]], num_teams: int = 1, team_size: int = 4) -> list[list[tuple[str, str, tuple[int, int, int]]]]:
     total_needed = num_teams * team_size
     if len(characters) < total_needed:
         raise Exception(f"Недостаточно персонажей для {num_teams} команд по {team_size}: доступно {len(characters)}, требуется {total_needed}")
@@ -60,6 +63,7 @@ def generate_teams(characters: list[tuple[str, str, tuple[int,int,int]]], num_te
     for team in teams:
         random.shuffle(team)
     return teams
+
 
 if __name__ == "__main__":
     try:
