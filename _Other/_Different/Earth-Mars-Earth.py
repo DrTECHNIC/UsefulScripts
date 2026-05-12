@@ -1,6 +1,7 @@
 EARTH_DAY_SEC = 24 * 3600                # 86400 секунд в земных сутках
 MARS_SOL_SEC = 24 * 3600 + 39 * 60 + 35  # 88775 секунд в одном соле
 
+
 def earth_to_mars(earth_days=0, earth_hours=0, earth_minutes=0, earth_seconds=0):
     total_earth_days = (earth_days + earth_hours / 24 + earth_minutes / 1440 + earth_seconds / 86400)
     total_earth_seconds = total_earth_days * EARTH_DAY_SEC
@@ -17,6 +18,7 @@ def earth_to_mars(earth_days=0, earth_hours=0, earth_minutes=0, earth_seconds=0)
     if mars_hours == 24: mars_hours, mars_sols = 0, mars_sols + 1
     return mars_sols, mars_hours, mars_minutes, mars_seconds
 
+
 def mars_to_earth(mars_sols=0, mars_hours=0, mars_minutes=0, mars_seconds=0):
     total_mars_days = (mars_sols + mars_hours / 24 + mars_minutes / 1440 + mars_seconds / 86400)
     total_earth_seconds = total_mars_days * MARS_SOL_SEC
@@ -30,6 +32,7 @@ def mars_to_earth(mars_sols=0, mars_hours=0, mars_minutes=0, mars_seconds=0):
     if earth_minutes == 60: earth_minutes, earth_hours = 0, earth_hours + 1
     if earth_hours == 24: earth_hours, earth_days = 0, earth_days + 1
     return earth_days, earth_hours, earth_minutes, earth_seconds
+
 
 def ask_time_components(planet):
     if planet == "Земля":  unit = "дней"
@@ -48,6 +51,7 @@ def ask_time_components(planet):
     except ValueError:
         print("Ошибка: введите числа.")
         return None
+
 
 if __name__ == "__main__":
     print("Конвертер времени Земля ↔ Марс\n")
