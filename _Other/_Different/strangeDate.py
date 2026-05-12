@@ -8,6 +8,7 @@ def parse(date_time: str) -> tuple[int, int, int, int, int, int, int]:
     millisecond = int(date_time[20:])
     return year, month, day, hour, minute, second, millisecond
 
+
 def calculate(YYYY: int, MM: int, DD: int, hh: int, mm: int, ss: int, mss: int) -> tuple[int, int, int, int, int, int, int]:
     mss = mss + 1
     if mss == 1000:
@@ -33,6 +34,7 @@ def calculate(YYYY: int, MM: int, DD: int, hh: int, mm: int, ss: int, mss: int) 
                         if MM == 13:
                             YYYY, MM = YYYY + 1, 1
     return YYYY, MM, DD, hh, mm, ss, mss
+
 
 if __name__ == "__main__":
     YYYY, MM, DD, hh, mm, ss, mss = parse("27.11.2005 07:30:27:761")
