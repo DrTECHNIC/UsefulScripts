@@ -66,6 +66,7 @@ def integer_calculate(current: int, count: int, plus: float) -> list[int]:
         current += plus
     return array
 
+
 def color_calculate(color_min: str, color_max: str, count: int) -> tuple[list[int], list[int], list[int]]:
     r_min, g_min, b_min = color_parse(color_min)
     r_max, g_max, b_max = color_parse(color_max)
@@ -77,17 +78,20 @@ def color_calculate(color_min: str, color_max: str, count: int) -> tuple[list[in
         if count != 1 else [round((b_min + b_max) / 2)]
     return r_list, g_list, b_list
 
+
 def color_parse(color: str) -> tuple[int, int, int]:
     if color[0] != "#":
         raise Exception("Invalid color. Should start with #")
     rgb = color[1:]
     for char in rgb:
-        if not ('0' <= char <= '9' or 'A' <= char <= 'F' or 'a' <= char <= 'f'):
+        if not ("0" <= char <= "9" or "A" <= char.upper() <= "F"):
             raise Exception("Invalid color. Should contain only symbols 0-9 and A-F or a-f")
     return int(rgb[:2], 16), int(rgb[2:4], 16), int(rgb[4:], 16)
 
+
 def color_get(red: int, green: int, blue: int) -> str:
     return f"\033[38;2;{red};{green};{blue}m#{hex(red)[2:].zfill(2)}{hex(green)[2:].zfill(2)}{hex(blue)[2:].zfill(2)}\033[0m"
+
 
 def color_print(color_list: list[str]) -> None:
     print("[", end="")
@@ -97,6 +101,7 @@ def color_print(color_list: list[str]) -> None:
             print(", ", end="")
     print("]")
 
+
 def string_calculate(string_min: str, string_max: str, count: int) -> list[str]:
     s_min = string_parse(string_min)
     s_max = string_parse(string_max)
@@ -104,8 +109,10 @@ def string_calculate(string_min: str, string_max: str, count: int) -> list[str]:
          if count != 1 else [round((s_min[i] + s_max[i]) / 2)] for i in range(len(s_min))]
     return ["".join(chr(array[j][i]) for j in range(len(s_min))) for i in range(count)]
 
+
 def string_parse(string: str) -> list[int]:
     return [ord(char) for char in string]
+
 
 def boolean_calculate(current: float, count: int, plus: float) -> list[str]:
     array = []
@@ -113,6 +120,7 @@ def boolean_calculate(current: float, count: int, plus: float) -> list[str]:
         array.append("Undefined" if False < current < True else bool(current))
         current += plus
     return array
+
 
 def boolean_print(boolean_list: list[str]) -> None:
     print("[", end="")
