@@ -1,12 +1,13 @@
 import re
 
+
 class UnitOfInformation:
     _prefixes = " KMGTPEZY"
     _units_order = [("YB", 8 * 1024 ** 8), ("ZB", 8 * 1024 ** 7), ("EB", 8 * 1024 ** 6), ("PB", 8 * 1024 ** 5), ("TB", 8 * 1024 ** 4), ("GB", 8 * 1024 ** 3), ("MB", 8 * 1024 ** 2), ("KB", 8 * 1024), ("B", 8), ("b", 1)]
     _unit_to_attr = {"YB": "yottabytes", "ZB": "zettabytes", "EB": "exabytes", "PB": "petabytes", "TB": "terabytes", "GB": "gigabytes", "MB": "megabytes", "KB": "kilobytes", "B": "bytes", "b": "bits"}
     _unit_multipliers = {"b": 1, "B": 8, "KB": 8 * 1024, "MB": 8 * 1024 ** 2, "GB": 8 * 1024 ** 3, "TB": 8 * 1024 ** 4, "PB": 8 * 1024 ** 5, "EB": 8 * 1024 ** 6, "ZB": 8 * 1024 ** 7, "YB": 8 * 1024 ** 8}
 
-    def __init__(self, value: int|float|str|dict = 0):
+    def __init__(self, value: int | float | str | dict = 0):
         if   isinstance(value, int):
             if value < 0:
                 raise ValueError("Отрицательное количество бит недопустимо")
@@ -195,7 +196,7 @@ class UnitOfInformation:
 
     def to_bits(self) -> int:
         return self._total_bits
-    
+
     @classmethod
     def _from_bits(cls, bits: int):
         obj = cls.__new__(cls)
