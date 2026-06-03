@@ -64,5 +64,38 @@ def html_reformat(input_path: str = ".\\_games.html", output_path: str = ".\\_ga
     print(f"Форматированный HTML сохранён в {output_path}")
 
 
-if __name__ == "__main__":
-    extract_games()
+def html_add_newlines(input_path: str = ".\\_games.html", output_path: str = ".\\_games_copy.html"):
+    with open(input_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    html = html.replace("\r", "").replace("\n", "")
+    html = html.replace(">", ">\n")
+
+    with open(output_path, "w", encoding="utf-8") as out:
+        out.write(html)
+
+    print(f"Файл с переносами сохранён в {output_path}")
+
+
+def html_blocks(input_path: str = ".\\_games.html", output_path: str = ".\\_games_copy.html"):
+    with open(input_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    html = html.replace("\r", "").replace("\n", "")
+
+    block_tags = {
+        "div", "table", "tr", "td", "th", "section", "article", "header", "footer", "nav",
+        "ul", "ol", "li", "h1", "h2", "h3", "h4", "h5", "h6", "p", "form", "fieldset",
+        "pre", "blockquote", "aside", "main", "details", "summary", "figure", "figcaption",
+    }
+
+    for tag in block_tags:
+        html = html.replace(f"<{tag}", f"\n<{tag}")
+        html = html.replace(f"</{tag}>", f"</{tag}>\n")
+
+    html = re.sub(r"\n\s*\n", "\n", html)
+
+    with open(output_path, "w", encoding="utf-8") as out:
+        out.write(html)
+
+    print(f"Файл с переносами сохранён в {output_path}")
