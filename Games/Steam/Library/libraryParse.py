@@ -34,32 +34,34 @@ def extract_games(input_path: str = ".\\_games.html", output_path: str = ".\\_ga
 # DO NOT USE THIS!!!
 # THIS CAN CONVERT 26.5 MB TO 8.47 GB
 def html_reformat(input_path: str = ".\\_games.html", output_path: str = ".\\_games_copy.html"):
-    with open(input_path, 'r', encoding='utf-8') as f:
+    with open(input_path, "r", encoding="utf-8") as f:
         html = f.read()
 
-    html = html.replace('\r', '').replace('\n', '')
-    html = re.sub(r'>\s*<', '>\n<', html)
-    html = re.sub(r'<!--', '\n<!--', html)
-    html = re.sub(r'-->', '-->\n', html)
+    html = html.replace("\r", "").replace("\n", "")
+    html = re.sub(r">\s*<", ">\n<", html)
+    html = re.sub(r"<!--", "\n<!--", html)
+    html = re.sub(r"-->", "-->\n", html)
 
-    lines = html.split('\n')
+    lines = html.split("\n")
     indent = 0
-    with open(output_path, 'w', encoding='utf-8') as out:
+    with open(output_path, "w", encoding="utf-8") as out:
         for line in lines:
             stripped = line.strip()
             if not stripped:
                 continue
-            if stripped.startswith('</') or stripped.startswith('-->'):
+            if stripped.startswith("</") or stripped.startswith("-->"):
                 indent = max(0, indent - 1)
-            out.write('  ' * indent + stripped + '\n')
-            if (stripped.startswith('<') and
-                not stripped.startswith('</') and
-                not stripped.startswith('<!--') and
-                not stripped.endswith('/>') and
-                not stripped.endswith('-->')):
+            out.write("  " * indent + stripped + "\n")
+            if (
+                stripped.startswith("<")
+                and not stripped.startswith("</")
+                and not stripped.startswith("<!--")
+                and not stripped.endswith("/>")
+                and not stripped.endswith("-->")
+            ):
                 indent += 1
 
-    print(f'Форматированный HTML сохранён в {output_path}')
+    print(f"Форматированный HTML сохранён в {output_path}")
 
 
 if __name__ == "__main__":
