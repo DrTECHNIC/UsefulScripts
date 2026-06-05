@@ -17,7 +17,7 @@ def extract_games(input_path: str = ".\\_games.html", output_path: str = ".\\_ga
     for m in link_pattern.finditer(html):
         url = m.group(1)
         name = " ".join(m.group(2).strip().split())
-        if name == "Store Page":
+        if name in ("Store Page", "Страница в магазине"):
             continue
         if (url, name) not in seen_pairs:
             seen_pairs.add((url, name))
@@ -285,9 +285,7 @@ def parse_fourth_string(script_text):
 
         if name == "SSR.loaderData" and isinstance(value, list):
             try:
-                value = [
-                    loads(item) if isinstance(item, str) else item for item in value
-                ]
+                value = [loads(item) if isinstance(item, str) else item for item in value]
             except Exception:
                 pass
 
