@@ -11,37 +11,82 @@ def pull(statistic: dict()):
     try:
         percent = randint(0, 100000) / 1000
         statistic["pulled_total"] += 1
-        if percent <= CHANCES_5_STAR[statistic["pulled_5_star"]]:
-            statistic["pulled_5_star"] = 0
-            statistic["pulled_4_star"] += 1 if statistic["pulled_4_star"] < 50 else 0
-            statistic["pulled_3_star"] += 1 if statistic["pulled_3_star"] < 25 else 0
-            statistic["pulled_2_star"] += 1 if statistic["pulled_2_star"] < 10 else 0
-            print("You've got ★★★★★!")
-        else:
-            if percent <= CHANCES_4_STAR[statistic["pulled_4_star"]]:
-                statistic["pulled_4_star"] = 0
-                statistic["pulled_3_star"] += 1 if statistic["pulled_3_star"] < 25 else 0
-                statistic["pulled_2_star"] += 1 if statistic["pulled_2_star"] < 10 else 0
-                print("You've got ★★★★!")
+        if percent <= CHANCES_5_STAR[statistic["pulled_after_5_star"]]:
+            statistic["pulled_after_5_star"] = 0
+            statistic["pulled_after_4_star"] += 1 if statistic["pulled_after_4_star"] < 50 else 0
+            statistic["pulled_after_3_star"] += 1 if statistic["pulled_after_3_star"] < 25 else 0
+            statistic["pulled_after_2_star"] += 1 if statistic["pulled_after_2_star"] < 10 else 0
+            print("You've got ★★★★★!", end=" ")
+            if statistic["next_event_5_star"] or randint(0, 100000) / 1000 <= 50:
+                statistic["next_event_5_star"] = False
+                print("★ Event!")
             else:
-                if percent <= CHANCES_3_STAR[statistic["pulled_3_star"]]:
-                    statistic["pulled_3_star"] = 0
-                    statistic["pulled_2_star"] += 1 if statistic["pulled_2_star"] < 50 else 0
-                    print("You've got ★★★!")
+                statistic["next_event_5_star"] = True
+                print("☆ Standard!")
+        else:
+            if percent <= CHANCES_4_STAR[statistic["pulled_after_4_star"]]:
+                statistic["pulled_after_5_star"] += 1
+                statistic["pulled_after_4_star"] = 0
+                statistic["pulled_after_3_star"] += 1 if statistic["pulled_after_3_star"] < 25 else 0
+                statistic["pulled_after_2_star"] += 1 if statistic["pulled_after_2_star"] < 10 else 0
+                print("You've got ★★★★☆!", end=" ")
+                if statistic["next_event_4_star"] or randint(0, 100000) / 1000 <= 50:
+                    statistic["next_event_4_star"] = False
+                    print("★ Event!")
                 else:
-                    if percent <= CHANCES_2_STAR[statistic["pulled_2_star"]]:
-                        statistic["pulled_2_star"] = 0
-                        print("You've got ★★!")
+                    statistic["next_event_4_star"] = True
+                    print("☆ Standard!")
+            else:
+                if percent <= CHANCES_3_STAR[statistic["pulled_after_3_star"]]:
+                    statistic["pulled_after_5_star"] += 1
+                    statistic["pulled_after_4_star"] += 1
+                    statistic["pulled_after_3_star"] = 0
+                    statistic["pulled_after_2_star"] += 1 if statistic["pulled_after_2_star"] < 50 else 0
+                    print("You've got ★★★☆☆!", end=" ")
+                    if statistic["next_event_3_star"] or randint(0, 100000) / 1000 <= 50:
+                        statistic["next_event_3_star"] = False
+                        print("★ Event!")
                     else:
-                        print("You've got ★!")
+                        statistic["next_event_3_star"] = True
+                        print("☆ Standard!")
+                else:
+                    if percent <= CHANCES_2_STAR[statistic["pulled_after_2_star"]]:
+                        statistic["pulled_after_5_star"] += 1
+                        statistic["pulled_after_4_star"] += 1
+                        statistic["pulled_after_3_star"] += 1
+                        statistic["pulled_after_2_star"] = 0
+                        print("You've got ★★☆☆☆!", end=" ")
+                        if statistic["next_event_2_star"] or randint(0, 100000) / 1000 <= 50:
+                            statistic["next_event_2_star"] = False
+                            print("★ Event!")
+                        else:
+                            statistic["next_event_2_star"] = True
+                            print("☆ Standard!")
+                    else:
+                        statistic["pulled_after_5_star"] += 1
+                        statistic["pulled_after_4_star"] += 1
+                        statistic["pulled_after_3_star"] += 1
+                        statistic["pulled_after_2_star"] += 1
+                        print("You've got ★☆☆☆☆!", end=" ")
+                        if statistic["next_event_1_star"] or randint(0, 100000) / 1000 <= 50:
+                            statistic["next_event_1_star"] = False
+                            print("★ Event!")
+                        else:
+                            statistic["next_event_1_star"] = True
+                            print("☆ Standard!")
     except Exception as errorMessage:
         print(errorMessage)
 
 if __name__ == "__main__":
     statistic = {
         "pulled_total": 0,
-        "pulled_5_star": 0,
-        "pulled_4_star": 0,
-        "pulled_3_star": 0,
-        "pulled_2_star": 0,
+        "pulled_after_5_star": 0,
+        "pulled_after_4_star": 0,
+        "pulled_after_3_star": 0,
+        "pulled_after_2_star": 0,
+        "next_event_5_star": False,
+        "next_event_4_star": False,
+        "next_event_3_star": False,
+        "next_event_2_star": False,
+        "next_event_1_star": False,
     }
