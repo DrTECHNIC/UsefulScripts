@@ -2,6 +2,7 @@ import re
 from json import loads, JSONDecodeError
 
 
+# Из файла "Сообщество Steam __ username __ Игры"
 def extract_games(input_path: str = ".\\_games.html", output_path: str = ".\\_games.txt"):
     link_pattern = re.compile(
         r'<a\s[^>]*href="(https://store\.steampowered\.com/app/\d+(?:/[^"]*)?)"[^>]*>([^<]+)</a>',
@@ -65,6 +66,7 @@ def html_reformat(input_path: str = ".\\_games.html", output_path: str = ".\\_ga
     print(f"Форматированный HTML сохранён в {output_path}")
 
 
+# Создает дубликат файла с переходами на новую строку после закрывающихся стрелочек
 def html_add_newlines(input_path: str = ".\\_games.html", output_path: str = ".\\_games_copy.html"):
     with open(input_path, "r", encoding="utf-8") as f:
         html = f.read()
@@ -78,6 +80,7 @@ def html_add_newlines(input_path: str = ".\\_games.html", output_path: str = ".\
     print(f"Файл с переносами сохранён в {output_path}")
 
 
+# Создает дубликат файла с переходами на новую строку после закрывающихся тегов
 def html_blocks(input_path: str = ".\\_games.html", output_path: str = ".\\_games_copy.html"):
     with open(input_path, "r", encoding="utf-8") as f:
         html = f.read()
@@ -102,6 +105,7 @@ def html_blocks(input_path: str = ".\\_games.html", output_path: str = ".\\_game
     print(f"Файл с переносами сохранён в {output_path}")
 
 
+# Из файла "Сообщество Steam __ username __ Игры"
 def pdf_hard_parse(input_path: str = ".\\_games.html", output_path: str = ".\\report.txt"):
     with open(input_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -293,3 +297,45 @@ def parse_fourth_string(script_text):
         parsed[name] = value
         pos = new_pos
     return parsed
+
+# Из файла "Семейный просмотр.html"
+def pdf_lite_parse(file_path: str, output_path: str = "report.txt"):
+    with open(file_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    report_lines = []
+
+    config = loads(re.search(r'<div id="application_config"[^>]*data-config="([^"]+)"', content).group(1).replace('&quot;', '"'))
+    report_lines.append("=== ИНФОРМАЦИЯ ОБ АККАУНТЕ ===")
+    report_lines.append(f"Страна: {config.get('COUNTRY', 'N/A')}")
+    report_lines.append(f"Язык интерфейса: {config.get('LANGUAGE', 'N/A')}")
+
+    userinfo = loads(re.search(r'data-userinfo="([^"]+)"', content).group(1).replace('&quot;', '"'))
+    report_lines.append(f"SteamID: {userinfo.get('steamid', 'N/A')}")
+    report_lines.append(f"Имя аккаунта: {userinfo.get('account_name', 'N/A')}")
+    report_lines.append(f"Ограниченный аккаунт: {userinfo.get('is_limited', False)}")
+    report_lines.append("")
+
+    report_lines.append("=== БАЛАНС КОШЕЛЬКА ===")
+    report_lines.append(f"Баланс: {re.search(r'<span id="header_wallet_balance">([^<]+)</span>', content).group(1).strip()}")
+    report_lines.append("")
+
+    game_rows = re.findall(r'<li class="parental_app_row[^"]*"[^>]*>.*?<label class="parental_app_list_col2[^"]*"[^>]*>(.*?)</label>', content, re.DOTALL)
+    game_names = [re.sub(r'\s+', ' ', name).strip() for name in game_rows]
+
+    report_lines.append("=== СПИСОК ИГР В БИБЛИОТЕКЕ ===")
+    report_lines.append(f"Всего игр: {len(game_names)}")
+    report_lines.append("Названия игр:")
+    for idx, name in enumerate(game_names, 1):
+        report_lines.append(f"{idx}. {name}")
+
+    store_config = loads(re.search(r'data-store_user_config="([^"]+)"', content).group(1).replace('&quot;', '"'))
+    wishlist_count = store_config.get('wishlist_item_count')
+    report_lines.append("")
+    report_lines.append("=== ДОПОЛНИТЕЛЬНО ===")
+    report_lines.append(f"Количество игр в списке желаемого: {wishlist_count}")
+
+    with open(output_path, 'w', encoding='utf-8') as out:
+        out.write('\n'.join(report_lines))
+
+    print(f"Отчёт сохранён в {output_path}")
