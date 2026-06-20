@@ -106,7 +106,7 @@ def html_blocks(input_path: str = ".\\_games.html", output_path: str = ".\\_game
 
 
 # Из файла "Сообщество Steam __ username __ Игры"
-def pdf_hard_parse(input_path: str = ".\\_games.html", output_path: str = ".\\report.txt"):
+def html_hard_parse(input_path: str = ".\\_games.html", output_path: str = ".\\report.txt"):
     with open(input_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
 
@@ -299,41 +299,86 @@ def parse_fourth_string(script_text):
     return parsed
 
 # Из файла "Семейный просмотр.html"
-def pdf_lite_parse(file_path: str, output_path: str = "report.txt"):
+import re
+from json import loads, JSONDecodeError
+
+def html_lite_parse(file_path: str, output_path: str = "report.txt"):
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     report_lines = []
 
-    config = loads(re.search(r'<div id="application_config"[^>]*data-config="([^"]+)"', content).group(1).replace('&quot;', '"'))
     report_lines.append("=== ИНФОРМАЦИЯ ОБ АККАУНТЕ ===")
-    report_lines.append(f"Страна: {config.get('COUNTRY', 'N/A')}")
-    report_lines.append(f"Язык интерфейса: {config.get('LANGUAGE', 'N/A')}")
-
-    userinfo = loads(re.search(r'data-userinfo="([^"]+)"', content).group(1).replace('&quot;', '"'))
-    report_lines.append(f"SteamID: {userinfo.get('steamid', 'N/A')}")
-    report_lines.append(f"Имя аккаунта: {userinfo.get('account_name', 'N/A')}")
-    report_lines.append(f"Ограниченный аккаунт: {userinfo.get('is_limited', False)}")
+    config_match = re.search(r'<div id="application_config"[^>]*data-config="([^"]+)"', content)
+    if config_match:
+        try:
+            config = loads(config_match.group(1).replace('&quot;', '"'))
+            report_lines.append(f"Страна: {config.get('COUNTRY', 'N/A')}")
+            report_lines.append(f"Язык интерфейса: {config.get('LANGUAGE', 'N/A')}")
+        except (JSONDecodeError, AttributeError):
+            report_lines.append("Страна: N/A (ошибка парсинга)")
+            report_lines.append("Язык интерфейса: N/A (ошибка парсинга)")
+    else:
+        report_lines.append("Страна: N/A (не найдено)")
+        report_lines.append("Язык интерфейса: N/A (не найдено)")
+    userinfo_match = re.search(r'data-userinfo="([^"]+)"', content)
+    if userinfo_match:
+        try:
+            userinfo = loads(userinfo_match.group(1).replace('&quot;', '"'))
+            report_lines.append(f"SteamID: {userinfo.get('steamid', 'N/A')}")
+            report_lines.append(f"Имя аккаунта: {userinfo.get('account_name', 'N/A')}")
+            report_lines.append(f"Ограниченный аккаунт: {userinfo.get('is_limited', False)}")
+        except (JSONDecodeError, AttributeError):
+            report_lines.append("SteamID: N/A (ошибка парсинга)")
+            report_lines.append("Имя аккаунта: N/A (ошибка парсинга)")
+            report_lines.append("Ограниченный аккаунт: N/A")
+    else:
+        report_lines.append("SteamID: N/A (не найдено)")
+        report_lines.append("Имя аккаунта: N/A (не найдено)")
+        report_lines.append("Ограниченный аккаунт: N/A")
     report_lines.append("")
 
     report_lines.append("=== БАЛАНС КОШЕЛЬКА ===")
-    report_lines.append(f"Баланс: {re.search(r'<span id="header_wallet_balance">([^<]+)</span>', content).group(1).strip()}")
+    balance = None
+    balance_match = re.search(r'<[^>]+ id="header_wallet_balance"[^>]*>([^<]+)</[^>]+>', content)
+    if balance_match:
+        balance = balance_match.group(1).strip()
+    else:
+        wallet_match = re.search(r'Мой кошелёк.*?<span class="account_name">([^<]+)</span>', content, re.DOTALL)
+        if wallet_match:
+            balance = wallet_match.group(1).strip()
+        else:
+            fallback = re.search(r'<span class="account_name">([\d\s,.]+\s*[₽$€]?)</span>', content)
+            if fallback:
+                balance = fallback.group(1).strip()
+    if balance:
+        report_lines.append(f"Баланс: {balance}")
+    else:
+        report_lines.append("Баланс: N/A (не найден)")
     report_lines.append("")
 
     game_rows = re.findall(r'<li class="parental_app_row[^"]*"[^>]*>.*?<label class="parental_app_list_col2[^"]*"[^>]*>(.*?)</label>', content, re.DOTALL)
     game_names = [re.sub(r'\s+', ' ', name).strip() for name in game_rows]
-
     report_lines.append("=== СПИСОК ИГР В БИБЛИОТЕКЕ ===")
     report_lines.append(f"Всего игр: {len(game_names)}")
     report_lines.append("Названия игр:")
     for idx, name in enumerate(game_names, 1):
         report_lines.append(f"{idx}. {name}")
-
     store_config = loads(re.search(r'data-store_user_config="([^"]+)"', content).group(1).replace('&quot;', '"'))
     wishlist_count = store_config.get('wishlist_item_count')
     report_lines.append("")
+
     report_lines.append("=== ДОПОЛНИТЕЛЬНО ===")
-    report_lines.append(f"Количество игр в списке желаемого: {wishlist_count}")
+    store_match = re.search(r'data-store_user_config="([^"]+)"', content)
+    if store_match:
+        try:
+            store_config = loads(store_match.group(1).replace('&quot;', '"'))
+            wishlist_count = store_config.get('wishlist_item_count')
+            report_lines.append(f"Количество игр в списке желаемого: {wishlist_count if wishlist_count is not None else 'N/A'}")
+        except (JSONDecodeError, AttributeError):
+            report_lines.append("Количество игр в списке желаемого: N/A (ошибка парсинга)")
+    else:
+        report_lines.append("Количество игр в списке желаемого: N/A (не найдено)")
 
     with open(output_path, 'w', encoding='utf-8') as out:
         out.write('\n'.join(report_lines))
