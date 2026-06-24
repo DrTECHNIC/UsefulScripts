@@ -25,8 +25,10 @@ def calculate(xp_array: list[int], days_left: int, lvl_current: int = 2, xp_lvl_
 
 
 if __name__ == "__main__":
-    xp_array = parse(".\\_experiences.txt")
-    days_left = int(input("Сколько дней осталось до окончания Боевого пропуска? # "))
+    xp_array = parse(".\\_experiences_bp.txt" if input("Выполняешь Боевой пропуск? (д/н) # ").lower() in ("д", "y")
+    else ".\\_experiences_bp_mini.txt" if input("Выполняешь Событийный пропуск? (д/н) # ").lower() in ("д", "y")
+    else input("Введи путь к файлу с очками опыта # "))
+    days_left = int(input("Сколько дней осталось до окончания Пропуска? # "))
     lvl_current = int(input("Какой уровень сейчас улучшается? # "))
     xp_lvl_current = int(input("Сколько опыта уже получено? # "))
     days_skip = int(input("Сколько дней будет пропущено? # "))

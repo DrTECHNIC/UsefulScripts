@@ -1,3 +1,5 @@
+(you can edit this, but it's optional)
+(the story only had different experience points in episode 1)
 Chapter 1 :     0,  2000,  2750,  3500,  4250,
 Chapter 2 :  5000,  5750,  6500,  7250,  8000,
 Chapter 3 :  8750,  9500, 10250, 11000, 11750,
