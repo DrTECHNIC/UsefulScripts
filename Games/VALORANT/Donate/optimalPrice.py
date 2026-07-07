@@ -173,7 +173,7 @@ def main():
         print(f"Топ-{len(top_combinations)} оптимальных вариантов:")
         print("=" * 50)
         for i, (rub, vp, used_packs) in enumerate(top_combinations, 1):
-            print(f"{Colors.CYAN}{Colors.BOLD}Вариант #{i}:{Colors.RESET}")
+            print(f"{Colors.CYAN}{Colors.BOLD}Вариант №{i}:{Colors.RESET}")
             print(f"Потрачено рублей: {Colors.RED}{rub}{Colors.RESET}")
             print(f"Получено поинтов: {Colors.GREEN}{vp}{Colors.RESET}")
             sorted_packs = sorted(used_packs, key=lambda p: p.vp)
@@ -181,7 +181,7 @@ def main():
             print(f"Используемые поинты: {Colors.YELLOW}{vp_list}{Colors.RESET}")
             print("-" * 30)
         return
-    parser = argparse.ArgumentParser(description="Оптимальный калькулятор валют")
+    parser = argparse.ArgumentParser(description="Оптимальный калькулятор для VALORANT")
     parser.add_argument("--price", required=True, help="Файл с ценами на Valorant Points")
     parser.add_argument("--vp", type=int, help="Требуемое количество VP")
     parser.add_argument("--rp", type=int, help="Требуемое количество RP")
@@ -211,9 +211,7 @@ def main():
     except Exception as e:
         print(f"Ошибка при чтении файла: {e}")
         return
-    combinations = find_optimal_combinations(
-        packs, target_vp, args.have_vp, args.have_rp
-    )
+    combinations = find_optimal_combinations(packs, target_vp, args.have_vp, args.have_rp)
     top_combinations = filter_top_combinations(combinations)
     if not top_combinations:
         print("Не удалось найти подходящие комбинации")
@@ -221,7 +219,7 @@ def main():
     print(f"Топ-{len(top_combinations)} оптимальных вариантов:")
     print("=" * 50)
     for i, (rub, vp, used_packs) in enumerate(top_combinations, 1):
-        print(f"{Colors.CYAN}{Colors.BOLD}Вариант #{i}:{Colors.RESET}")
+        print(f"{Colors.CYAN}{Colors.BOLD}Вариант №{i}:{Colors.RESET}")
         print(f"Потрачено рублей: {Colors.RED}{rub}{Colors.RESET}")
         print(f"Получено поинтов: {Colors.GREEN}{vp}{Colors.RESET}")
         sorted_packs = sorted(used_packs, key=lambda p: p.vp)
