@@ -914,11 +914,11 @@ class App(tk.Tk):
             games1 = ceil(raunds1 / 5)
             self.opt1_var.set(f"{raunds1} раундов (~{games1} игр)")
 
-            raunds2 = max(ceil(daily_no_daily / 200), 16)
+            raunds2 = max(ceil(daily_base / 200), 16)
             games2 = ceil(raunds2 / 5)
             self.opt2_var.set(f"{raunds2} раундов (~{games2} игр)")
 
-            games3 = max(ceil(daily_no_daily / 1000), 8)
+            games3 = max(ceil(daily_base / 1000), 8)
             self.opt3_var.set(f"{games3} игр")
 
         today = moscow_today()
