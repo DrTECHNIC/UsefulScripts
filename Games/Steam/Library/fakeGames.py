@@ -1,24 +1,3 @@
-"""
-fakeGames.py
-============
-
-Собирает консольное приложение в .exe.
-
-Параметр picture:
-    ""   | None | "none"   ->  без рисунка
-    "random"               ->  при КАЖДОМ запуске .exe — случайный рисунок
-    "pot" / "cat" / ...    ->  всегда один и тот же рисунок
-
-В окне выводятся:
-    - заголовок (app_name),
-    - название рисунка + сам рисунок (если есть),
-    - расширенная информация об устройстве,
-    - счётчик сессии и общего времени.
-
-Время пишется в файл РЯДОМ С .EXE:
-    <имя>.pt
-"""
-
 from __future__ import annotations
 import os
 import subprocess
@@ -197,7 +176,7 @@ PICTURES = {
 HEADER = r'''
 import sys, os, time, atexit, platform, socket, shutil
 import getpass, datetime, uuid, locale
-import random
+import random, json
 from pathlib import Path
 
 if sys.platform == "win32":
@@ -216,7 +195,49 @@ def clear():
     os.system("cls" if os.name == "nt" else "clear")
 
 
-# ─────────── статистика времени ───────────
+# ─────────── неблокирующее чтение клавиш ───────────
+
+def _read_key():
+    if os.name == "nt":
+        try:
+            import msvcrt
+        except Exception:
+            return None
+        if not msvcrt.kbhit():
+            return None
+        b = msvcrt.getch()
+        if b in (b"\x00", b"\xe0"):
+            if msvcrt.kbhit():
+                msvcrt.getch()
+            return None
+        try:
+            return b.decode("latin-1")
+        except Exception:
+            return None
+    else:
+        try:
+            import select
+            if select.select([sys.stdin], [], [], 0)[0]:
+                return sys.stdin.read(1)
+        except Exception:
+            pass
+        return None
+
+
+def _flush_keys():
+    if os.name == "nt":
+        try:
+            import msvcrt
+            while msvcrt.kbhit():
+                msvcrt.getch()
+        except Exception:
+            pass
+
+
+# ─────────── статистика времени и настройки в .pt ───────────
+
+STORAGE_KEY = __STORAGE_KEY__   # вшитое при сборке имя-идентификатор
+
 
 def _sanitize(s):
     out = "".join(c if c.isalnum() or c in " _-" else "_" for c in s)
@@ -224,36 +245,98 @@ def _sanitize(s):
     return out or "app"
 
 
-def _stats_path(safe_name):
+def _exe_dir():
     if getattr(sys, "frozen", False):
-        base = Path(sys.executable).resolve().parent
-    else:
-        base = Path(__file__).resolve().parent
-    return base / f"{safe_name}.pt"
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def _pt_path_for(name):
+    return _exe_dir() / f"{_sanitize(name)}.pt"
+
+
+def _read_pt(path):
+    """Читает .pt. Понимает новый (JSON) и старый (одно число) форматы."""
+    try:
+        raw = path.read_text(encoding="utf-8").strip()
+    except Exception:
+        return {}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    try:
+        return {"total_seconds": float(raw), "legacy": True}
+    except Exception:
+        return {}
+
+
+def _default_cfg(default_name):
+    return {
+        "storage_key": STORAGE_KEY,
+        "name": default_name,
+        "total_seconds": 0.0,
+        "show_title": True,
+        "show_picture": True,
+        "show_device": True,
+        "show_time": True,
+        "show_hint": True,
+        "picture_key": None,
+    }
+
+
+def _fill_defaults(data, default_name):
+    base = _default_cfg(default_name)
+    for k, v in base.items():
+        data.setdefault(k, v)
+    data["storage_key"] = STORAGE_KEY
+    return data
+
+
+def load_or_init(default_name):
+    """Найти наш .pt (по storage_key) или подготовить данные нового."""
+    base = _exe_dir()
+
+    # 1) поиск по storage_key
+    for p in base.glob("*.pt"):
+        data = _read_pt(p)
+        if data.get("storage_key") == STORAGE_KEY:
+            return p, _fill_defaults(data, default_name)
+
+    # 2) миграция: файл с именем APP_TITLE (старый формат — просто число)
+    p = base / f"{_sanitize(default_name)}.pt"
+    if p.exists():
+        data = _read_pt(p)
+        return p, _fill_defaults(data, default_name)
+
+    # 3) совсем новый
+    return p, _default_cfg(default_name)
 
 
 class PlaytimeTracker:
-    def __init__(self, name, autosave=5.0):
-        self.display_name = name
-        self.safe_name = _sanitize(name)
+    def __init__(self, cfg, cfg_path, autosave=0.5):
+        self.cfg = cfg
+        self.path = cfg_path
         self.autosave = autosave
-        self.path = _stats_path(self.safe_name)
-        self.total = 0.0
+        self.total = float(cfg.get("total_seconds", 0.0) or 0.0)
         self.session_start = time.time()
         self.last_save = self.session_start
         self._closed = False
-        self._load()
         atexit.register(self._finalize)
 
-    def _load(self):
-        try:
-            self.total = float(self.path.read_text(encoding="utf-8").strip())
-        except Exception:
-            self.total = 0.0
+    @property
+    def display_name(self):
+        return self.cfg.get("name", "app")
 
-    def _save(self):
+    def save(self):
+        self.cfg["total_seconds"] = round(self.total, 2)
         try:
-            self.path.write_text(f"{self.total:.2f}", encoding="utf-8")
+            self.path.write_text(
+                json.dumps(self.cfg, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
         except Exception:
             pass
 
@@ -265,7 +348,7 @@ class PlaytimeTracker:
         if now - self.last_save >= self.autosave:
             self.total += now - self.last_save
             self.last_save = now
-            self._save()
+            self.save()
 
     def _finalize(self):
         if self._closed:
@@ -275,7 +358,33 @@ class PlaytimeTracker:
         if now > self.last_save:
             self.total += now - self.last_save
             self.last_save = now
-        self._save()
+        self.save()
+
+    def rename(self, new_name):
+        now = time.time()
+        self.total += now - self.last_save
+        self.last_save = now
+
+        old_path = self.path
+        new_path = _pt_path_for(new_name)
+
+        # если целевой файл — наш же, сливаем времена
+        if new_path != old_path and new_path.exists():
+            other = _read_pt(new_path)
+            if other.get("storage_key") == STORAGE_KEY:
+                self.total += float(other.get("total_seconds", 0.0) or 0.0)
+
+        self.cfg["name"] = new_name
+        self.path = new_path
+        self.save()
+
+        if old_path != new_path and old_path.exists():
+            try:
+                old_path.unlink()
+            except Exception:
+                pass
+
+        self.session_start = time.time()
 
     @staticmethod
     def fmt(seconds):
@@ -597,7 +706,7 @@ def run_hacking_easter_egg(tracker):
     print("  !!! ВНИМАНИЕ !!!")
     print("  ОБНАРУЖЕНА ПОПЫТКА НЕСАНКЦИОНИРОВАННОГО ДОСТУПА")
     print("=" * 64)
-    time.sleep(1.2)
+    time.sleep(1.0)
     print()
     print("  HACKER TERMINAL v3.14  ::  режим проникновения")
     print("  " + "-" * 62)
@@ -605,7 +714,7 @@ def run_hacking_easter_egg(tracker):
     for i, msg in enumerate(HACK_STEPS, 1):
         print(f"  [{i:02d}/{len(HACK_STEPS)}] {msg}...")
         tracker.tick()
-        time.sleep(0.30 + random.random() * 0.45)
+        time.sleep(0.25 + random.random() * 0.35)
         print(f"          [+] OK  ::  {_hexrand(16)}:{_hexrand(16)}")
     print()
     print("  " + "-" * 62)
@@ -613,21 +722,14 @@ def run_hacking_easter_egg(tracker):
     print("  Поток данных:")
     for _ in range(6):
         print(f"  > {_hexrand(56)}")
-        time.sleep(0.12)
+        time.sleep(0.10)
     print()
     print("  ... шутка :)")
     print("  Это была пасхалка. Возвращаемся к делу.")
-    time.sleep(2.5)
+    time.sleep(2.0)
 
 
-# ─────────── режим рисунка ───────────
-#
-# PICTURE_MODE:
-#   "none"   — рисунок не выводится
-#   "fixed"  — всегда PICTURE_KEY
-#   "random" — каждый запуск .exe выбирается новый рисунок
-#
-# ALL_PICTURES — все рисунки, встроенные в .exe.
+# ─────────── выбор рисунка ───────────
 
 PICTURE_MODE = __PICTURE_MODE__
 PICTURE_KEY  = __PICTURE_KEY__
@@ -635,27 +737,37 @@ ALL_PICTURES = __ALL_PICTURES__
 
 PICTURE_TITLE = ""
 PICTURE = []
+CURRENT_PICTURE_KEY = None
+
+
+def set_picture_by_key(key):
+    global PICTURE_TITLE, PICTURE, CURRENT_PICTURE_KEY
+    if key and key in ALL_PICTURES:
+        data = ALL_PICTURES[key]
+        PICTURE_TITLE = data["title"]
+        PICTURE = data["lines"]
+        CURRENT_PICTURE_KEY = key
+    else:
+        PICTURE_TITLE, PICTURE, CURRENT_PICTURE_KEY = "", [], None
+
+
+def pick_random_picture():
+    if not ALL_PICTURES:
+        set_picture_by_key(None)
+        return
+    key = random.choice(list(ALL_PICTURES.keys()))
+    set_picture_by_key(key)
 
 
 def resolve_picture():
-    """Определить, какой рисунок показывать в этом запуске."""
-    global PICTURE_TITLE, PICTURE
     if PICTURE_MODE == "none":
-        PICTURE_TITLE, PICTURE = "", []
-        return
-    if PICTURE_MODE == "fixed":
-        data = ALL_PICTURES.get(PICTURE_KEY)
-        if not data:
-            PICTURE_TITLE, PICTURE = "", []
-            return
+        set_picture_by_key(None)
+    elif PICTURE_MODE == "fixed":
+        set_picture_by_key(PICTURE_KEY)
     elif PICTURE_MODE == "random":
-        key = random.choice(list(ALL_PICTURES.keys()))
-        data = ALL_PICTURES[key]
+        pick_random_picture()
     else:
-        PICTURE_TITLE, PICTURE = "", []
-        return
-    PICTURE_TITLE = data["title"]
-    PICTURE = data["lines"]
+        set_picture_by_key(None)
 
 
 def draw_picture():
@@ -665,6 +777,60 @@ def draw_picture():
     print("  ── Рисунок: " + PICTURE_TITLE + " " + "─" * pad)
     for line in PICTURE:
         print("  " + line)
+
+
+# ─────────── рендер экрана ───────────
+
+def render_screen(state, tracker, dev_rows, blink):
+    clear()
+    print("=" * 64)
+    if state["show_title"]:
+        print(f"  {state['title']}")
+        print("=" * 64)
+    print()
+
+    if state["show_picture"] and PICTURE:
+        draw_picture()
+        print()
+
+    if state["show_device"]:
+        draw_device_info(dev_rows)
+        print()
+
+    if state["show_time"]:
+        dots = "." * (blink % 4)
+        print(f"  Занят{dots}")
+        print()
+        print(f"  {tracker.status_line()}")
+        print()
+
+    if state["show_hint"]:
+        print("  " + "─" * 60)
+        print("  0 выход   1 название   2 рисунок   3 показатели")
+        print("  4 время   5 переименовать   6 сменить рисунок   \\ подсказка")
+        print("  " + "─" * 60)
+
+    print("=" * 64)
+
+
+# ─────────── переименование ───────────
+
+def prompt_rename(tracker):
+    _flush_keys()
+    clear()
+    print("=" * 64)
+    print("  ПЕРЕИМЕНОВАНИЕ ПРИЛОЖЕНИЯ")
+    print("=" * 64)
+    print()
+    print(f"  Текущее имя      : {tracker.display_name}")
+    print(f"  Файл со временем : {tracker.path.name}")
+    print()
+    try:
+        raw = input("  Новое имя (Enter — отмена): ")
+    except (EOFError, KeyboardInterrupt):
+        raw = ""
+    _flush_keys()
+    return raw.strip()
 '''
 
 
@@ -672,54 +838,96 @@ BODY = r'''
 
 APP_TITLE = __APP_TITLE__
 
-# Вероятность, что при запуске проиграется пасхалка. 0.10 = 10%.
+# Вероятность пасхалки при запуске. 0.10 = 10%.
 HACK_EASTER_EGG_CHANCE = 0.10
 
 
 def main():
-    tracker = PlaytimeTracker(APP_TITLE)
-    try:
-        # выбрать рисунок для ЭТОГО запуска
+    cfg_path, cfg = load_or_init(APP_TITLE)
+    tracker = PlaytimeTracker(cfg, cfg_path)
+
+    state = {
+        "title":        cfg["name"],
+        "show_title":   cfg["show_title"],
+        "show_picture": cfg["show_picture"],
+        "show_device":  cfg["show_device"],
+        "show_time":    cfg["show_time"],
+        "show_hint":    cfg["show_hint"],
+    }
+
+    # рисунок: приоритет — сохранённый вручную
+    saved_pic = cfg.get("picture_key")
+    if saved_pic and saved_pic in ALL_PICTURES:
+        set_picture_by_key(saved_pic)
+    else:
         resolve_picture()
 
-        # ─── пасхалка ───
+    def persist():
+        cfg["name"]         = state["title"]
+        cfg["show_title"]   = state["show_title"]
+        cfg["show_picture"] = state["show_picture"]
+        cfg["show_device"]  = state["show_device"]
+        cfg["show_time"]    = state["show_time"]
+        cfg["show_hint"]    = state["show_hint"]
+        cfg["picture_key"]  = CURRENT_PICTURE_KEY
+        tracker.save()
+
+    try:
         if random.random() < HACK_EASTER_EGG_CHANCE:
             run_hacking_easter_egg(tracker)
 
-        # ─── обычный режим ───
         blink = 0
         dev_rows = collect_device_info()
-        last_refresh = time.time()
+        last_dev_refresh = time.time()
+        last_render = 0.0
+
         while True:
-            if time.time() - last_refresh >= 5.0:
-                dev_rows = collect_device_info()
-                last_refresh = time.time()
+            key = _read_key()
+            if key:
+                changed = False
+                if key == "0":
+                    break
+                elif key == "1":
+                    state["show_title"] = not state["show_title"];    changed = True
+                elif key == "2":
+                    state["show_picture"] = not state["show_picture"]; changed = True
+                elif key == "3":
+                    state["show_device"] = not state["show_device"];   changed = True
+                elif key == "4":
+                    state["show_time"] = not state["show_time"];       changed = True
+                elif key == "5":
+                    new_name = prompt_rename(tracker)
+                    if new_name:
+                        tracker.rename(new_name)
+                        state["title"] = new_name
+                        changed = True
+                    last_render = 0.0
+                elif key == "6":
+                    pick_random_picture()
+                    state["show_picture"] = True
+                    changed = True
+                elif key == "\\":
+                    state["show_hint"] = not state["show_hint"];       changed = True
 
-            clear()
-            print("=" * 64)
-            print(f"  {APP_TITLE}")
-            print("=" * 64)
-            print()
+                if changed:
+                    persist()
 
-            if PICTURE:
-                draw_picture()
-                print()
-
-            draw_device_info(dev_rows)
-            print()
-
-            dots = "." * (blink % 4)
-            print(f"  Занят{dots}")
-            print()
-            print(f"  {tracker.session_line() if hasattr(tracker, 'session_line') else tracker.status_line()}")
-            print("  Ctrl+C — выход.")
-            print("=" * 64)
+            now = time.time()
+            if now - last_render >= 0.3:
+                if now - last_dev_refresh >= 5.0:
+                    dev_rows = collect_device_info()
+                    last_dev_refresh = now
+                render_screen(state, tracker, dev_rows, blink)
+                last_render = now
+                blink += 1
 
             tracker.tick()
-            time.sleep(0.5)
-            blink += 1
+            time.sleep(0.05)
+
     except KeyboardInterrupt:
-        print("\nПока!")
+        pass
+
+    print("\nПока!")
 
 
 if __name__ == "__main__":
@@ -740,11 +948,6 @@ def _safe_name(name: str) -> str:
 
 
 def _resolve_picture(picture):
-    """Возвращает (mode, key) для встраивания в .exe.
-
-    mode: "none" | "fixed" | "random"
-    key : ключ из PICTURES (только для mode="fixed")
-    """
     if picture is None:
         return "none", None
     if isinstance(picture, str):
@@ -771,11 +974,6 @@ def ensure_pyinstaller():
 
 
 def build(app_name: str, picture="") -> Path:
-    """Собрать .exe.
-
-    app_name — произвольное имя (заголовок в окне).
-    picture  — "" / None / "none" / "random" / ключ из PICTURES.
-    """
     if not isinstance(app_name, str) or not app_name.strip():
         print("app_name должен быть непустой строкой.")
         sys.exit(1)
@@ -784,8 +982,9 @@ def build(app_name: str, picture="") -> Path:
     safe = _safe_name(app_name)
 
     src = HEADER.replace("__PICTURE_MODE__", repr(mode))
-    src = src.replace("__PICTURE_KEY__", repr(key))
-    src = src.replace("__ALL_PICTURES__", repr(PICTURES))     # весь словарь
+    src = src.replace("__PICTURE_KEY__",  repr(key))
+    src = src.replace("__ALL_PICTURES__", repr(PICTURES))
+    src = src.replace("__STORAGE_KEY__",  repr(safe))
     src += BODY.replace("__APP_TITLE__", repr(app_name))
 
     ensure_pyinstaller()
