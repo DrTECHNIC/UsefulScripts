@@ -1,7 +1,7 @@
 ЛИЧНОЕ ОРУЖИЕ: CLASSIC, SHORTY, FRENZY, GHOST, BANDIT, SHERIFF,
 ПИСТОЛЕТЫ-ПУЛЕМЕТЫ: STINGER, SPECTRE,
 ДРОБОВИКИ: BUCKY, JUDGE,
-АВТОМАТЫ: BULLDOG, GUARDIAN, PHANTOM, VANDAL,
+АВТОМАТЫ: BULLDOG, GUARDIAN, WARDEN, PHANTOM, VANDAL,
 СНАЙПЕРСКИЕ ВИНТОВКИ: MARSHAL, OUTLAW, OPERATOR,
 ПУЛЕМЕТЫ: ARES, ODIN,
 ХОЛОДНОЕ ОРУЖИЕ: ХОЛОДНОЕ ОРУЖИЕ,
