@@ -1,244 +1,319 @@
-﻿<#
+﻿# PSWorkbench:Title=Переименование по алфавиту
+# PSWorkbench:Target=Directory
+<#
 .SYNOPSIS
-    Переименовывает файлы по алфавиту, присваивая им последовательные номера.
+    Переименовывает файлы в директории по алфавиту, присваивая им последовательные номера.
 .DESCRIPTION
     Файлы сортируются по имени и получают имена вида "номер.расширение". При конфликте имён файл пропускается.
     С помощью параметра -LogPath можно сохранить журнал переименований, а -Rollback выполнит откат по журналу.
 .PARAMETER Path
-    Путь к папке. Если не указан, запрашивается интерактивно (только в режиме переименования).
+    Путь к директории с файлами.
 .PARAMETER Digits
-    Минимальное количество цифр в номере (по умолчанию 3).
+    Минимальное количество цифр в номере (от 1 до 99).
 .PARAMETER StartNumber
-    Начальный номер счётчика (по умолчанию 1).
+    Начальный номер счётчика.
 .PARAMETER LogPath
     Путь к файлу журнала для записи или отката.
 .PARAMETER Rollback
-    Запускает откат переименований по файлу журнала.
+    Запускает откат переименований по указанному файлу журнала.
 .PARAMETER WhatIf
-    Показать планируемые изменения без выполнения.
+    Предпросмотр планируемых изменений без фактического переименования.
+.PARAMETER ShowHelp
+    Выводит справку по использованию скрипта.
 .EXAMPLE
     .\RenameByAlphabet.ps1 -Path "C:\Фото" -Digits 4 -StartNumber 100 -LogPath "лог.txt"
-    Переименовывает файлы и записывает изменения в лог.txt.
 .EXAMPLE
     .\RenameByAlphabet.ps1 -Rollback -LogPath "лог.txt"
-    Откатывает все переименования, сохранённые в лог.txt.
 #>
-[CmdletBinding(SupportsShouldProcess=$true, DefaultParameterSetName='Rename')]
+[CmdletBinding(SupportsShouldProcess = $true, DefaultParameterSetName = 'Rename')]
 param(
-    [Parameter(ParameterSetName='Rename', Position=0)]
-    [string]$Path,
-    [Parameter(ParameterSetName='Rename')]
+    [Parameter(ParameterSetName = 'Rename', Position = 0)]
+    [string]$Path = '.',
+
+    [Parameter(ParameterSetName = 'Rename')]
     [ValidateRange(1, 99)]
     [int]$Digits = 3,
-    [Parameter(ParameterSetName='Rename')]
+
+    [Parameter(ParameterSetName = 'Rename')]
     [ValidateRange(1, [int]::MaxValue)]
     [int]$StartNumber = 1,
-    [Parameter(ParameterSetName='Rename')]
-    [Parameter(ParameterSetName='Rollback', Mandatory=$true)]
+
+    [Parameter(ParameterSetName = 'Rename')]
+    [Parameter(ParameterSetName = 'Rollback', Mandatory = $true)]
     [string]$LogPath,
-    [Parameter(ParameterSetName='Rollback', Mandatory=$true)]
+
+    [Parameter(ParameterSetName = 'Rollback', Mandatory = $true)]
     [switch]$Rollback,
+
+    [Parameter(ParameterSetName = 'Help', Mandatory = $true)]
     [Alias('h')]
     [switch]$ShowHelp
 )
 
-if ($LogPath -and -not [System.IO.Path]::IsPathRooted($LogPath)) {
-    $LogPath = Join-Path (Get-Location) $LogPath
+function Invoke-RenameRollback {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResolvedLogPath,
+        [Parameter(Mandatory = $true)]
+        [System.Management.Automation.PSCmdlet]$Cmdlet,
+        [bool]$IsWhatIf
+    )
+
+    if (-not (Test-Path -LiteralPath $ResolvedLogPath -PathType Leaf)) {
+        Write-Error "Журнал '$ResolvedLogPath' не найден."
+        exit 1
+    }
+
+    $logLines = @(
+        Get-Content -LiteralPath $ResolvedLogPath -Encoding UTF8 |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+    )
+    if ($logLines.Count -eq 0) {
+        Write-Output "Журнал пуст. Откат не требуется."
+        exit 0
+    }
+
+    Write-Output "=== Откат переименований ==="
+    Write-Output "Журнал          : $ResolvedLogPath"
+    Write-Output "Записей         : $($logLines.Count)"
+    Write-Output ""
+
+    $total = $logLines.Count
+    $rolledBack = 0
+    $skipped = 0
+    $errorsRoll = 0
+    $activity = "Откат переименований"
+
+    try {
+        for ($i = $total - 1; $i -ge 0; $i--) {
+            if ($total -gt 20) {
+                $done = $total - $i
+                $percent = [math]::Round(($done / $total) * 100, 2)
+                Write-Progress -Activity $activity -Status "Обработка записи $done из $total" -PercentComplete $percent
+            }
+
+            $line = $logLines[$i]
+            $parts = $line -split "`t"
+            if ($parts.Count -ne 2) {
+                Write-Warning "Неверный формат строки: $line"
+                $errorsRoll++
+                continue
+            }
+
+            $oldPath = $parts[0]
+            $newPath = $parts[1]
+
+            if (-not (Test-Path -LiteralPath $newPath -PathType Leaf)) {
+                Write-Warning "Файл '$newPath' не найден — пропуск."
+                $skipped++
+                continue
+            }
+
+            $oldName = Split-Path -Path $oldPath -Leaf
+            $oldDir = Split-Path -Path $oldPath -Parent
+            $targetPath = Join-Path -Path $oldDir -ChildPath $oldName
+
+            if (Test-Path -LiteralPath $targetPath) {
+                Write-Warning "Конфликт: '$oldName' уже существует. Откат для '$newPath' пропущен."
+                $skipped++
+                continue
+            }
+
+            $currentLeaf = Split-Path -Path $newPath -Leaf
+            if ($IsWhatIf) {
+                Write-Output "WhatIf: $currentLeaf -> $oldName"
+                $rolledBack++
+            }
+            elseif ($Cmdlet.ShouldProcess($newPath, "Откат: вернуть '$oldName'")) {
+                try {
+                    Rename-Item -LiteralPath $newPath -NewName $oldName -ErrorAction Stop
+                    Write-Output "Откат: $currentLeaf -> $oldName"
+                    $rolledBack++
+                }
+                catch {
+                    Write-Error "Ошибка отката '$newPath': $($_.Exception.Message)"
+                    $errorsRoll++
+                }
+            }
+        }
+    }
+    finally {
+        if ($total -gt 20) { Write-Progress -Activity $activity -Completed }
+    }
+
+    Write-Output ""
+    Write-Output "=== Итоги отката ==="
+    Write-Output "Всего записей   : $total"
+    if ($IsWhatIf) {
+        Write-Output "Будет откачено  : $rolledBack"
+        Write-Output "Пропущено       : $skipped"
+        if ($errorsRoll -gt 0) { Write-Output "Ошибок формата  : $errorsRoll" }
+        Write-Output "Режим           : WhatIf (изменения не выполнялись)"
+    }
+    else {
+        Write-Output "Откачено        : $rolledBack"
+        Write-Output "Пропущено       : $skipped"
+        if ($errorsRoll -gt 0) { Write-Output "Ошибок          : $errorsRoll" }
+    }
 }
 
 if ($ShowHelp) {
-@"
+    $scriptName = $MyInvocation.MyCommand.Name
+    Write-Output @"
 Переименование файлов по алфавиту с последовательной нумерацией.
 Поддерживает ведение журнала и откат.
 
 Параметры:
-  -Path          Папка с файлами (если не указан, запрашивается).
-  -Digits        Мин. цифр в номере (по умолч. 3).
-  -StartNumber   Начальный номер (по умолч. 1).
+  -Path          Директория с файлами.
+  -Digits        Минимальное количество цифр в номере (1..99).
+  -StartNumber   Начальный номер счётчика.
   -LogPath       Путь к файлу журнала.
   -Rollback      Откат по журналу (требует -LogPath).
   -WhatIf        Предпросмотр без изменений.
+  -ShowHelp (-h) Показать эту справку.
 
 Примеры:
-  .\RenameByAlphabet.ps1 -Path "C:\Фото" -Digits 4 -StartNumber 100 -LogPath "лог.txt"
-  .\RenameByAlphabet.ps1 -Rollback -LogPath "лог.txt"
+  .\$scriptName -Path "C:\Фото" -Digits 4 -StartNumber 100 -LogPath "лог.txt"
+  .\$scriptName -Rollback -LogPath "лог.txt"
 "@
-    exit
+    exit 0
+}
+
+$resolvedLogPath = ''
+if (-not [string]::IsNullOrWhiteSpace($LogPath)) {
+    if ([System.IO.Path]::IsPathRooted($LogPath)) {
+        $resolvedLogPath = [System.IO.Path]::GetFullPath($LogPath)
+    }
+    else {
+        $resolvedLogPath = [System.IO.Path]::GetFullPath((Join-Path -Path (Get-Location).ProviderPath -ChildPath $LogPath))
+    }
 }
 
 if ($PSCmdlet.ParameterSetName -eq 'Rollback') {
-    if (-not (Test-Path $LogPath)) {
-        Write-Error "Журнал '$LogPath' не найден."
-        exit 1
-    }
-    $logLines = @(Get-Content $LogPath)
-    if ($logLines.Count -eq 0) {
-        Write-Host "Журнал пуст. Откат не требуется." -ForegroundColor Yellow
-        exit
-    }
-    Write-Host "Режим отката. Строк в журнале: $($logLines.Count)" -ForegroundColor Cyan
+    Invoke-RenameRollback -ResolvedLogPath $resolvedLogPath -Cmdlet $PSCmdlet -IsWhatIf ([bool]$WhatIfPreference)
+    exit 0
+}
 
-    $total = $logLines.Count
-    $rolledBack = 0; $skipped = 0; $errorsRoll = 0
-    $progressActivity = "Откат переименований"
+if ([string]::IsNullOrWhiteSpace($Path)) {
+    $Path = '.'
+}
 
-    for ($i = $total - 1; $i -ge 0; $i--) {
-        if ($total -gt 20) {
-            $percent = [math]::Round(($total - $i) / $total * 100, 2)
-            Write-Progress -Activity $progressActivity -Status "Обработка строки $($total - $i) из $total" -PercentComplete $percent
+if (-not (Test-Path -LiteralPath $Path -PathType Container)) {
+    Write-Error "Директория '$Path' не существует или не является папкой."
+    exit 1
+}
+
+$resolvedDir = (Resolve-Path -LiteralPath $Path).ProviderPath
+$files = @(
+    Get-ChildItem -LiteralPath $resolvedDir -File |
+    Where-Object {
+        -not $resolvedLogPath -or -not $_.FullName.Equals($resolvedLogPath, [System.StringComparison]::OrdinalIgnoreCase)
+    } |
+    Sort-Object -Property Name
+)
+
+if ($files.Count -eq 0) {
+    Write-Output "В директории '$resolvedDir' нет файлов для переименования."
+    exit 0
+}
+
+$maxNewNumber = [long]$StartNumber + $files.Count - 1
+$effectiveDigits = [Math]::Max($Digits, $maxNewNumber.ToString().Length)
+$extensions = @(
+    $files |
+    ForEach-Object { if ($_.Extension) { $_.Extension } else { '(без расширения)' } } |
+    Select-Object -Unique
+) -join ', '
+
+Write-Output "=== Переименование по алфавиту ==="
+Write-Output "Директория      : $resolvedDir"
+Write-Output "Найдено файлов  : $($files.Count)"
+Write-Output "Расширения      : $extensions"
+Write-Output "Начальный номер : $StartNumber"
+Write-Output "Разрядность     : $effectiveDigits"
+Write-Output ""
+
+$counter = [long]$StartNumber
+$renamed = 0
+$skipped = 0
+$conflicts = 0
+$errors = 0
+$activity = "Переименование по алфавиту"
+
+$logWriter = $null
+if ($resolvedLogPath -and -not $WhatIfPreference) {
+    $logDir = Split-Path -Path $resolvedLogPath -Parent
+    if ($logDir -and -not (Test-Path -LiteralPath $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+    $logWriter = [System.IO.StreamWriter]::new($resolvedLogPath, $false, [System.Text.UTF8Encoding]::new($true))
+}
+
+try {
+    foreach ($file in $files) {
+        if ($files.Count -gt 20) {
+            $processed = $counter - $StartNumber
+            $percent = [math]::Round(($processed / $files.Count) * 100, 2)
+            Write-Progress -Activity $activity -Status "Обработка: $($file.Name)" -PercentComplete $percent
         }
 
-        $line = $logLines[$i]
-        $parts = $line -split "`t"
-        if ($parts.Count -ne 2) {
-            Write-Warning "Неверный формат строки: $line"
-            $errorsRoll++
+        $newName = "{0:D$effectiveDigits}{1}" -f $counter, $file.Extension
+        $newPath = Join-Path -Path $resolvedDir -ChildPath $newName
+
+        if ($file.Name.Equals($newName, [System.StringComparison]::OrdinalIgnoreCase)) {
+            Write-Verbose "Пропущен '$($file.Name)' — уже правильное имя."
+            $skipped++
+            $counter++
             continue
         }
-        $oldPath = $parts[0]
-        $newPath = $parts[1]
 
-        if (-not (Test-Path $newPath)) {
-            Write-Warning "Файл '$newPath' не найден – возможно, уже удалён. Пропуск."
-            $skipped++
-            continue
-        }
-
-        $oldName = Split-Path $oldPath -Leaf
-        $oldDir = Split-Path $oldPath -Parent
-        $targetPath = Join-Path $oldDir $oldName
-
-        if (Test-Path $targetPath) {
-            Write-Warning "Конфликт: '$oldName' уже существует. Пропускаем откат для '$newPath'."
-            $skipped++
+        if (Test-Path -LiteralPath $newPath) {
+            Write-Warning "Конфликт: '$newName' уже существует. Пропускаем '$($file.Name)'."
+            $conflicts++
+            $counter++
             continue
         }
 
         if ($WhatIfPreference) {
-            Write-Host "WhatIf: откат $(Split-Path $newPath -Leaf) -> $oldName" -ForegroundColor Yellow
+            Write-Output "WhatIf: $($file.Name) -> $newName"
+            $renamed++
         }
-        elseif ($PSCmdlet.ShouldProcess($newPath, "Откат: вернуть '$oldName'")) {
+        elseif ($PSCmdlet.ShouldProcess($file.FullName, "Переименовать в '$newName'")) {
             try {
-                Rename-Item -Path $newPath -NewName $oldName -ErrorAction Stop
-                Write-Host "Откат: $(Split-Path $newPath -Leaf) -> $oldName" -ForegroundColor Green
-                $rolledBack++
-            } catch {
-                Write-Error "Ошибка отката '$newPath': $_"
-                $errorsRoll++
+                Rename-Item -LiteralPath $file.FullName -NewName $newName -ErrorAction Stop
+                Write-Output "Переименован: $($file.Name) -> $newName"
+                $renamed++
+                if ($logWriter) {
+                    $logWriter.WriteLine("$($file.FullName)`t$newPath")
+                }
+            }
+            catch {
+                Write-Error "Ошибка при переименовании '$($file.Name)': $($_.Exception.Message)"
+                $errors++
             }
         }
-    }
 
-    if ($total -gt 20) { Write-Progress -Activity $progressActivity -Completed }
-
-    Write-Host "`nОткат завершён:" -ForegroundColor Cyan
-    if ($WhatIfPreference) {
-        Write-Host "  Всего записей в журнале: $total" -ForegroundColor White
-        Write-Host "  Будет откачено: $($total - $skipped - $errorsRoll)" -ForegroundColor Green
-        Write-Host "  Пропущено: $skipped" -ForegroundColor Yellow
-    } else {
-        Write-Host "  Всего записей: $total" -ForegroundColor White
-        Write-Host "  Успешно откачено: $rolledBack" -ForegroundColor Green
-        Write-Host "  Пропущено: $skipped" -ForegroundColor Yellow
-        if ($errorsRoll -gt 0) { Write-Host "  Ошибок: $errorsRoll" -ForegroundColor Red }
-    }
-    if ($WhatIfPreference) { Write-Host "  (Режим WhatIf – изменения не выполнялись)" -ForegroundColor Yellow }
-    exit
-}
-
-if (-not $Path) {
-    $Path = Read-Host "Введите путь к папке с файлами"
-}
-if (-not (Test-Path $Path -PathType Container)) {
-    Write-Error "Ошибка: папка '$Path' не существует или не является папкой."
-    exit 1
-}
-
-$files = @(Get-ChildItem -Path $Path -File | Sort-Object Name)
-if ($files.Count -eq 0) {
-    Write-Host "В папке нет файлов." -ForegroundColor Yellow
-    exit
-}
-
-$extensions = ($files | ForEach-Object { if ($_.Extension) { $_.Extension } else { "(без расширения)" } } | Select-Object -Unique) -join ', '
-Write-Host "Найдено файлов: $($files.Count)" -ForegroundColor Cyan
-Write-Host "Расширения: $extensions"
-Write-Host "Формат имени: номер ($Digits цифр) + исходное расширение"
-Write-Host "Начальный номер: $StartNumber"
-
-$counter = $StartNumber
-$renamed = 0; $skipped = 0; $conflicts = 0; $errors = 0
-$plannedRename = 0; $plannedSkip = 0; $plannedConflict = 0
-$progressActivity = "Переименование по алфавиту"
-
-$logWriter = $null
-if ($LogPath) {
-    $logDir = Split-Path $LogPath -Parent
-    if ($logDir -and -not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-    $logWriter = [System.IO.StreamWriter]::new($LogPath, $false, [System.Text.UTF8Encoding]::new($true))
-}
-
-foreach ($file in $files) {
-    if ($files.Count -gt 20) {
-        $percent = [math]::Round((($counter - $StartNumber) / $files.Count) * 100, 2)
-        Write-Progress -Activity $progressActivity -Status "Обработка: $($file.Name)" -PercentComplete $percent
-    }
-
-    $ext = $file.Extension
-    $newName = "{0:D$Digits}{1}" -f $counter, $ext
-    $newPath = Join-Path $Path $newName
-
-    if ($file.Name -eq $newName) {
-        Write-Verbose "Пропущен '$($file.Name)' - уже правильное имя"
-        $skipped++
-        $plannedSkip++
         $counter++
-        continue
     }
-
-    if (Test-Path $newPath) {
-        Write-Warning "Конфликт: '$newName' уже существует. Пропускаем '$($file.Name)'."
-        $conflicts++
-        $plannedConflict++
-        $counter++
-        continue
-    }
-
-    $plannedRename++
-
-    if ($WhatIfPreference) {
-        Write-Host "WhatIf: $($file.Name) -> $newName" -ForegroundColor Yellow
-    }
-    elseif ($PSCmdlet.ShouldProcess($file.FullName, "Переименовать в '$newName'")) {
-        try {
-            Rename-Item -Path $file.FullName -NewName $newName -ErrorAction Stop
-            Write-Host "Переименован: $($file.Name) -> $newName" -ForegroundColor Green
-            $renamed++
-            if ($logWriter) { $logWriter.WriteLine("$($file.FullName)`t$newPath") }
-        } catch {
-            Write-Error "Ошибка при переименовании '$($file.Name)': $_"
-            $errors++
-        }
-    }
-
-    $counter++
+}
+finally {
+    if ($logWriter) { $logWriter.Dispose() }
+    if ($files.Count -gt 20) { Write-Progress -Activity $activity -Completed }
 }
 
-if ($logWriter) { $logWriter.Close() }
-if ($files.Count -gt 20) { Write-Progress -Activity $progressActivity -Completed }
-
-Write-Host "`nОбработка завершена:" -ForegroundColor Cyan
+Write-Output ""
+Write-Output "=== Итоги обработки ==="
+Write-Output "Всего файлов    : $($files.Count)"
 if ($WhatIfPreference) {
-    Write-Host "  Всего файлов: $($files.Count)" -ForegroundColor White
-    Write-Host "  Будет переименовано: $plannedRename" -ForegroundColor Green
-    Write-Host "  Будет пропущено (уже правильные имена): $plannedSkip" -ForegroundColor Yellow
-    if ($plannedConflict -gt 0) { Write-Host "  Конфликтов: $plannedConflict" -ForegroundColor Red }
-    Write-Host "  (Режим WhatIf – изменения не выполнялись)" -ForegroundColor Yellow
-} else {
-    Write-Host "  Всего файлов: $($files.Count)" -ForegroundColor White
-    Write-Host "  Успешно переименовано: $renamed" -ForegroundColor Green
-    Write-Host "  Пропущено (уже правильные имена): $skipped" -ForegroundColor Yellow
-    if ($conflicts -gt 0) { Write-Host "  Конфликтов (пропущено): $conflicts" -ForegroundColor Red }
-    if ($errors -gt 0) { Write-Host "  Ошибок: $errors" -ForegroundColor Red }
-    if ($LogPath) { Write-Host "  Журнал записан: $LogPath" -ForegroundColor Cyan }
+    Write-Output "Будет изменено  : $renamed"
+    Write-Output "Пропущено       : $skipped"
+    if ($conflicts -gt 0) { Write-Output "Конфликтов      : $conflicts" }
+    Write-Output "Режим           : WhatIf (изменения не выполнялись)"
+}
+else {
+    Write-Output "Переименовано   : $renamed"
+    Write-Output "Пропущено       : $skipped"
+    if ($conflicts -gt 0) { Write-Output "Конфликтов      : $conflicts" }
+    if ($errors -gt 0) { Write-Output "Ошибок          : $errors" }
+    if ($resolvedLogPath) { Write-Output "Журнал записан  : $resolvedLogPath" }
 }
