@@ -214,9 +214,9 @@ $numberedFiles = @(
     ForEach-Object {
         $num = [System.Numerics.BigInteger]::Parse($Matches[1])
         [PSCustomObject]@{
-            File   = $_
+            File = $_
             Number = $num
-            Name   = $_.Name
+            Name = $_.Name
         }
     } |
     Sort-Object -Property Number, Name

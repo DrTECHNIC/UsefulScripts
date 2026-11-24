@@ -58,7 +58,7 @@
     "win": {
       "signAndEditExecutable": false,
       "target": [
-        "dir"
+        "portable"
       ]
     },
     "nsis": {

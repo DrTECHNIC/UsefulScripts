@@ -82,7 +82,6 @@ function Clear-ShellText {
     param([string]$Text)
 
     if ([string]::IsNullOrEmpty($Text)) { return '' }
-    # Удаляем невидимые управляющие символы направления текста (LTR/RTL), которые добавляет Windows Shell
     return ($Text -replace '[\u200E\u200F\u202A-\u202E\u2066-\u2069]', '').Trim()
 }
 
@@ -112,13 +111,13 @@ function Get-SummaryRows {
     param([System.IO.FileInfo]$File)
 
     $rows = [ordered]@{
-        'Имя'       = $File.Name
-        'Путь'      = $File.FullName
-        'Размер'    = '{0} ({1:N0} байт)' -f (Format-FileSize -Bytes $File.Length), $File.Length
-        'Атрибуты'  = [string]$File.Attributes
-        'Создан'    = $File.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')
-        'Изменён'   = $File.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
-        'Открыт'    = $File.LastAccessTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Имя' = $File.Name
+        'Путь' = $File.FullName
+        'Размер' = '{0} ({1:N0} байт)' -f (Format-FileSize -Bytes $File.Length), $File.Length
+        'Атрибуты' = [string]$File.Attributes
+        'Создан' = $File.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Изменён' = $File.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Открыт' = $File.LastAccessTime.ToString('yyyy-MM-dd HH:mm:ss')
     }
     return $rows
 }
@@ -127,20 +126,20 @@ function Get-BasicRows {
     param([System.IO.FileInfo]$File)
 
     $rows = [ordered]@{
-        'Имя файла'      = $File.Name
-        'Базовое имя'    = $File.BaseName
-        'Расширение'     = if ($File.Extension) { $File.Extension } else { '(нет)' }
-        'Папка'          = $File.DirectoryName
-        'Полный путь'    = $File.FullName
-        'Размер'         = '{0} ({1:N0} байт)' -f (Format-FileSize -Bytes $File.Length), $File.Length
-        'Атрибуты'       = [string]$File.Attributes
-        'Только чтение'  = if ($File.IsReadOnly) { 'Да' } else { 'Нет' }
-        'Создан'         = $File.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')
-        'Создан (UTC)'   = $File.CreationTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
-        'Изменён'        = $File.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
-        'Изменён (UTC)'  = $File.LastWriteTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
-        'Открыт'         = $File.LastAccessTime.ToString('yyyy-MM-dd HH:mm:ss')
-        'Открыт (UTC)'   = $File.LastAccessTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
+        'Имя файла' = $File.Name
+        'Базовое имя' = $File.BaseName
+        'Расширение' = if ($File.Extension) { $File.Extension } else { '(нет)' }
+        'Папка' = $File.DirectoryName
+        'Полный путь' = $File.FullName
+        'Размер' = '{0} ({1:N0} байт)' -f (Format-FileSize -Bytes $File.Length), $File.Length
+        'Атрибуты' = [string]$File.Attributes
+        'Только чтение' = if ($File.IsReadOnly) { 'Да' } else { 'Нет' }
+        'Создан' = $File.CreationTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Создан (UTC)' = $File.CreationTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
+        'Изменён' = $File.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Изменён (UTC)' = $File.LastWriteTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
+        'Открыт' = $File.LastAccessTime.ToString('yyyy-MM-dd HH:mm:ss')
+        'Открыт (UTC)' = $File.LastAccessTimeUtc.ToString('yyyy-MM-dd HH:mm:ss')
     }
 
     if ($File.PSObject.Properties['LinkType'] -and $File.LinkType) {
@@ -162,13 +161,13 @@ function Get-VersionRows {
         if (-not $vi) { return $rows }
 
         $fields = [ordered]@{
-            'Описание'         = $vi.FileDescription
-            'Продукт'          = $vi.ProductName
-            'Версия файла'     = $vi.FileVersion
-            'Версия продукта'  = $vi.ProductVersion
-            'Компания'         = $vi.CompanyName
-            'Исходное имя'     = $vi.OriginalFilename
-            'Авторские права'  = $vi.LegalCopyright
+            'Описание' = $vi.FileDescription
+            'Продукт' = $vi.ProductName
+            'Версия файла' = $vi.FileVersion
+            'Версия продукта' = $vi.ProductVersion
+            'Компания' = $vi.CompanyName
+            'Исходное имя' = $vi.OriginalFilename
+            'Авторские права' = $vi.LegalCopyright
         }
 
         foreach ($k in $fields.Keys) {
@@ -178,9 +177,7 @@ function Get-VersionRows {
             }
         }
     }
-    catch {
-        # У обычных (не PE) файлов сведений о версии нет
-    }
+    catch { } # У обычных (не PE) файлов сведений о версии нет
     return $rows
 }
 
@@ -227,9 +224,7 @@ function Get-ExtendedRows {
                 try {
                     [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($comObj)
                 }
-                catch {
-                    # ignore release errors
-                }
+                catch { } # ignore release errors
             }
         }
     }
