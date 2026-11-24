@@ -1,4 +1,4 @@
-# PSWorkbench:Title=Сбор и сортировка списка папок
+﻿# PSWorkbench:Title=Сбор и сортировка списка папок
 # PSWorkbench:Target=Directory
 <#
 .SYNOPSIS
